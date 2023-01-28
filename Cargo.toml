@@ -1,0 +1,50 @@
+[package]
+name = "pms"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = { version = "0.8", features = ["tls"] }
+tonic-web = "0.4"
+tower-http = "0.3"
+prost = {version = "0.11", features = ["prost-derive"]}
+prost-types = "0.11"
+tokio = { version = "1.0", features = ["full"] }
+async-stream = "0.3"
+futures-util = "0.3"
+core-graphics = "0.22"
+display-info = "0.3"
+image = "0.24"
+leptess = "0.13"
+chrono = "0.4"
+tantivy = "0.19"
+futures = "0.3"
+text_io = "0.1"
+walkdir = "2"
+indicatif = "0.17"
+glob = "0.3"
+rgb = "0.8"
+
+[build-dependencies]
+tonic-build = "0.8"
+
+[[bin]]
+name = "pms-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "pms-client"
+path = "src/bin/client.rs"
+
+[profile.dev]
+opt-level = 1
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+
+[profile.release]
+codegen-units = 1
+opt-level = 3
+lto = "thin"
+

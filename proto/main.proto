@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package api;
+
+import "google/protobuf/timestamp.proto";
+
+message UploadScreenRequest {
+  google.protobuf.Timestamp time = 1;
+  uint32 screen_id = 2;
+  bytes image = 3;
+}
+
+message SearchRequest {
+  string query = 1;
+  optional google.protobuf.Timestamp start_time = 2;
+  optional google.protobuf.Timestamp end_time = 3;
+}
+
+message SearchResponse {
+  message Screen {
+    uint32 screen_id = 1;
+    google.protobuf.Timestamp time = 2;
+    bytes image = 3;
+    string text = 4;
+  }
+  repeated Screen screens = 1;
+}
+
+message Ack {
+  bool success = 1;
+}
+
+service PMSService {
+  rpc UploadScreen(stream UploadScreenRequest) returns (Ack);
+  rpc SearchScreens(SearchRequest) returns (SearchResponse);
+}

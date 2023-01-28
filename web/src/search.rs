@@ -1,15 +1,14 @@
-use yew::prelude::*;
-use tonic_web_wasm_client::Client;
-use wasm_bindgen::{JsValue};
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
+use tonic_web_wasm_client::Client;
+use wasm_bindgen::JsValue;
 use web_sys::console;
+use yew::prelude::*;
 
 use crate::text_input::TextInput;
 
 use crate::api::pms_service_client::PmsServiceClient;
 use crate::api::{SearchRequest, SearchResponse};
-
 
 // Something wrong has occurred while searching
 #[derive(Debug, Clone, PartialEq)]
@@ -30,32 +29,43 @@ impl From<JsValue> for SearchError {
 }
 impl From<tonic::Status> for SearchError {
     fn from(status: tonic::Status) -> Self {
-        Self { err: JsValue::from_str(&status.to_string()) }
+        Self {
+            err: JsValue::from_str(&status.to_string()),
+        }
     }
 }
 
-async fn search_screens(query_client: &mut PmsServiceClient<Client>, query: &str) -> Result<SearchResponse, SearchError> {
-    let start_time = prost_types::Timestamp{
+async fn search_screens(
+    query_client: &mut PmsServiceClient<Client>,
+    query: &str,
+) -> Result<SearchResponse, SearchError> {
+    let start_time = prost_types::Timestamp {
         seconds: 0 as i64,
         nanos: 0,
     };
-    let end_time = prost_types::Timestamp{
+    let end_time = prost_types::Timestamp {
         seconds: 0 as i64,
         nanos: 0,
     };
-    let response = query_client.search_screens(SearchRequest { query: query.to_string(), start_time: Some(start_time), end_time: Some(end_time) }).await?;
+    let response = query_client
+        .search_screens(SearchRequest {
+            query: query.to_string(),
+            start_time: Some(start_time),
+            end_time: Some(end_time),
+        })
+        .await?;
     return Ok(response.into_inner());
 }
 
 pub enum SearchMsg {
     Search(),
     SetQuery(String),
-    Response(Option<SearchResponse>)
+    Response(Option<SearchResponse>),
 }
 
 pub enum SearchState {
     NotSearching,
-    Searching()
+    Searching(),
 }
 
 pub struct SearchComponent {
@@ -81,7 +91,9 @@ impl Component for SearchComponent {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             SearchMsg::Search() => {
-                let mut query_client = PmsServiceClient::new(tonic_web_wasm_client::Client::new("http://localhost:50001".to_string()));
+                let mut query_client = PmsServiceClient::new(tonic_web_wasm_client::Client::new(
+                    "http://localhost:50001".to_string(),
+                ));
                 let query_cp = self.query.clone();
                 ctx.link().send_future(async move {
                     console::log_1(&"Sending request".into());
@@ -111,24 +123,23 @@ impl Component for SearchComponent {
         let onchange = ctx.link().callback(SearchMsg::SetQuery);
 
         html! {
-            <form class="navbar-item" action="javascript:void(0);">
-            <div class="navbar-item">
-                <TextInput {onchange} placeholder="Search query" value={self.query.clone()} />
-            </div>
-            <div class="navbar-item">
-            {
-                match &self.search_state {
-                    SearchState::NotSearching => html! {
-                        <button class="button" type="submit" onclick={ctx.link().callback(|_| SearchMsg::Search())}> {"Search"} </button>
-                    },
-                    SearchState::Searching() => html! {
-                        <button class="button" type="submit" disabled=true> {"Searching..."} </button>
-                    },
+                <form class="navbar-item" action="javascript:void(0);">
+                <div class="navbar-item">
+                    <TextInput {onchange} placeholder="Search query" value={self.query.clone()} />
+                </div>
+                <div class="navbar-item">
+                {
+                    match &self.search_state {
+                        SearchState::NotSearching => html! {
+                            <button class="button" type="submit" onclick={ctx.link().callback(|_| SearchMsg::Search())}> {"Search"} </button>
+                        },
+                        SearchState::Searching() => html! {
+                            <button class="button" type="submit" disabled=true> {"Searching..."} </button>
+                        },
+                    }
                 }
-            }
-            </div>
-            </form>
+                </div>
+                </form>
+        }
     }
-    }
-
 }

@@ -1,11 +1,9 @@
 // Simple component to show the results of a search
-use yew::prelude::*;
 use crate::api::SearchResponse;
 use unicode_segmentation::UnicodeSegmentation;
+use yew::prelude::*;
 
-pub enum ResultsMessage {
-    
-}
+pub enum ResultsMessage {}
 
 pub struct ResultsComponent {}
 
@@ -20,9 +18,7 @@ impl Component for ResultsComponent {
     type Properties = ResultsProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-          
-        }
+        Self {}
     }
 
     fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
@@ -80,12 +76,15 @@ fn make_snippet(text: &String, query: &String, length: usize) -> (String, String
     let lower_text = text.to_lowercase();
     let words = lower_text.unicode_words().collect::<Vec<&str>>();
     // Find the (potential) index of the query in the text, and extract words before and after
-    words.iter().position(|&word| word == &query[..]).map(|index| {
-        let start_idx = std::cmp::max(0, index as isize - (length/2) as isize) as usize;
-        let end_idx = std::cmp::min(index + length/2, words.len());
-        before = words[start_idx..index].join(" ");
-        mid = format!(" {} ", words[index].to_string());
-        after = words[index..end_idx].join(" ");
-    });
+    words
+        .iter()
+        .position(|&word| word == &query[..])
+        .map(|index| {
+            let start_idx = std::cmp::max(0, index as isize - (length / 2) as isize) as usize;
+            let end_idx = std::cmp::min(index + length / 2, words.len());
+            before = words[start_idx..index].join(" ");
+            mid = format!(" {} ", words[index].to_string());
+            after = words[index..end_idx].join(" ");
+        });
     (before, mid, after)
 }

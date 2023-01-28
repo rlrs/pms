@@ -1,16 +1,13 @@
 use pms::api::pms_service_client::PmsServiceClient;
 use pms::api::UploadScreenRequest;
 
-use pms::screenshot::{all_screens, capture_screen};
 use futures::future;
 use futures_util::stream;
-use image::{codecs::jpeg::JpegEncoder, DynamicImage, GenericImageView, ImageBuffer};
-use std::{
-    thread,
-    time::{Duration, SystemTime},
-};
-use tokio::{task, time};
+use image::{codecs::jpeg::JpegEncoder, DynamicImage, ImageBuffer};
+use pms::screenshot::{all_screens, capture_screen};
 use rgb::*;
+use std::time::{Duration, SystemTime};
+use tokio::time;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -72,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Err(_) => eprintln!("Error sending screen"),
                 }
             } // end for screen in screens
-         }
+        }
     });
 
     future::join_all(vec![screen_task]).await;

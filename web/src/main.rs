@@ -1,7 +1,7 @@
-use yew::prelude::*;
-use web::search::SearchComponent;
 use web::api::SearchResponse;
 use web::results::ResultsComponent;
+use web::search::SearchComponent;
+use yew::prelude::*;
 
 struct App {
     query: String,
@@ -34,7 +34,9 @@ impl Component for App {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let onresult = ctx.link().callback(|(q, r)| AppMessage::SearchResponse(q,r));
+        let onresult = ctx
+            .link()
+            .callback(|(q, r)| AppMessage::SearchResponse(q, r));
         html! {
             <>
             <nav class="navbar" role="navigation" aria-label="main navigation">
@@ -44,7 +46,7 @@ impl Component for App {
                         <SearchComponent {onresult} />
                     </div>
                 </div>
-                
+
             </nav>
             <div class="container">
                 <ResultsComponent results={self.search_results.clone()} query={self.query.clone()} />
@@ -55,7 +57,6 @@ impl Component for App {
         }
     }
 }
-
 
 fn main() {
     yew::Renderer::<App>::new().render();

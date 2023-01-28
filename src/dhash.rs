@@ -36,7 +36,7 @@ pub fn to_grey_signature_image<I: GenericImageView + 'static>(
 > {
     let grey_image = grayscale(img);
 
-    let signature_image = resize(&grey_image, IMG_WIDTH+1, IMG_HEIGHT, FilterType::Triangle);
+    let signature_image = resize(&grey_image, IMG_WIDTH + 1, IMG_HEIGHT, FilterType::Triangle);
 
     return signature_image;
 }

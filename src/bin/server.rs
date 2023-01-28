@@ -1,25 +1,27 @@
-#[macro_use] extern crate tantivy;
-#[macro_use] extern crate text_io;
+extern crate tantivy;
+#[macro_use]
+extern crate text_io;
 use chrono::Datelike;
+use indicatif::ProgressBar;
 use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tantivy::collector::TopDocs;
 use tantivy::schema::*;
-use tantivy::Document;
-use tantivy::Index;
-use tantivy::IndexWriter;
+use tantivy::{Document, Index, IndexWriter};
 use tokio::sync::RwLock;
 use tokio::time;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use walkdir::WalkDir;
-use indicatif::ProgressBar;
 
 use pms::api;
 use pms::api::pms_service_server::{PmsService, PmsServiceServer};
-use pms::api::{Ack, SearchRequest, SearchResponse, UploadScreenRequest, search_response::Screen as SearchResponseScreen};
+use pms::api::{
+    search_response::Screen as SearchResponseScreen, Ack, SearchRequest, SearchResponse,
+    UploadScreenRequest,
+};
 use pms::dhash::{get_dhash, IMG_SIZE};
 
 use leptess::LepTess;
@@ -48,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::path::Path::new(&"screenshots/").exists() && !std::path::Path::new("index/").exists() {
         println!("Rebuilding index");
         std::fs::create_dir("index/")?;
-        let (schema, index) = make_schema(); 
+        let (schema, index) = make_schema();
         rebuild_index(&index, &schema).await;
     }
     let (schema, index) = make_schema();
@@ -79,7 +81,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn datetime_to_screen_path(datetime: chrono::NaiveDateTime, screen_id: u32) -> (String, String) {
-    let path = format!("screenshots/{}/{}/{}/", datetime.year(), datetime.month(), datetime.day());
+    let path = format!(
+        "screenshots/{}/{}/{}/",
+        datetime.year(),
+        datetime.month(),
+        datetime.day()
+    );
     let fname = format!("{}-{}.jpg", datetime.format("%H%M%S"), screen_id);
     (path, fname)
 }
@@ -107,13 +114,13 @@ impl PmsService for ImplPMSService {
             let datetime =
                 chrono::NaiveDateTime::from_timestamp_opt(time.seconds, time.nanos as u32).unwrap();
 
-             // Hash the image and check if it's already in the index
+            // Hash the image and check if it's already in the index
             let dyn_image = image::load_from_memory(&req.image).unwrap();
             let hash = get_dhash(&dyn_image);
             {
                 let hashes = self.hashes.read().await;
                 if hashes.contains(&hash) {
-                    return Ok(Response::new(Ack {success: true}));
+                    return Ok(Response::new(Ack { success: true }));
                 }
             }
 
@@ -133,12 +140,15 @@ impl PmsService for ImplPMSService {
                 self.schema.get_field("date").unwrap(),
                 tantivy::DateTime::from_timestamp_secs(datetime.timestamp()),
             );
-            doc.add_u64(self.schema.get_field("screen_id").unwrap(), req.screen_id as u64);
+            doc.add_u64(
+                self.schema.get_field("screen_id").unwrap(),
+                req.screen_id as u64,
+            );
             let index_writer = self.writer_arc.read().await;
             index_writer.add_document(doc).unwrap();
 
-            
-            { // Add the hash to the set
+            {
+                // Add the hash to the set
                 let mut hashes = self.hashes.write().await;
                 hashes.insert(hash);
             }
@@ -173,26 +183,42 @@ impl PmsService for ImplPMSService {
             let searcher = reader.searcher();
             let query = query_parser.parse_query(&req.query).unwrap();
             let top_docs = searcher.search(&query, &TopDocs::with_limit(200)).unwrap();
-            let mut screens : Vec<SearchResponseScreen>= vec![];
+            let mut screens: Vec<SearchResponseScreen> = vec![];
             println!("Found {} results", top_docs.len());
             for (_score, doc_address) in top_docs {
                 let retrieved_doc = searcher.doc(doc_address).unwrap();
 
-                let text = retrieved_doc.get_first(self.schema.get_field("text").unwrap()).unwrap().as_text().unwrap();
-                let date = retrieved_doc.get_first(self.schema.get_field("date").unwrap()).unwrap().as_date().unwrap();
+                let text = retrieved_doc
+                    .get_first(self.schema.get_field("text").unwrap())
+                    .unwrap()
+                    .as_text()
+                    .unwrap();
+                let date = retrieved_doc
+                    .get_first(self.schema.get_field("date").unwrap())
+                    .unwrap()
+                    .as_date()
+                    .unwrap();
                 //let screen_id = retrieved_doc.get_first(self.schema.get_field("screen_id").unwrap()).unwrap_or(&tantivy::schema::Value::U64(0)).as_u64().unwrap();
-                let screen_id = retrieved_doc.get_first(self.schema.get_field("screen_id").unwrap()).unwrap().as_u64().unwrap();
-                let (image_path, image_fname) = datetime_to_screen_path(chrono::NaiveDateTime::from_timestamp_opt(date.into_timestamp_secs(), 0).unwrap(), screen_id as u32);
+                let screen_id = retrieved_doc
+                    .get_first(self.schema.get_field("screen_id").unwrap())
+                    .unwrap()
+                    .as_u64()
+                    .unwrap();
+                let (image_path, image_fname) = datetime_to_screen_path(
+                    chrono::NaiveDateTime::from_timestamp_opt(date.into_timestamp_secs(), 0)
+                        .unwrap(),
+                    screen_id as u32,
+                );
                 let image_full_path = image_path + &image_fname;
                 screens.push(SearchResponseScreen {
-                        screen_id: screen_id as u32,
-                        image: std::fs::read(image_full_path).unwrap(),
-                        text: text.to_string(),
-                        time: Some(prost_types::Timestamp {
-                            seconds: date.into_timestamp_secs(),
-                            nanos: 0,
-                        }),
-                    });
+                    screen_id: screen_id as u32,
+                    image: std::fs::read(image_full_path).unwrap(),
+                    text: text.to_string(),
+                    time: Some(prost_types::Timestamp {
+                        seconds: date.into_timestamp_secs(),
+                        nanos: 0,
+                    }),
+                });
             }
             Ok(api::SearchResponse { screens })
         };
@@ -227,7 +253,9 @@ fn index_image(
     let screen_id: u64;
     scan!(path.bytes() => "screenshots/{}/{}/{}/{}-{}.jpg", year, month, day, time, screen_id);
     let time = chrono::NaiveTime::parse_from_str(&time, "%H%M%S").unwrap();
-    let datetime = chrono::NaiveDate::from_ymd_opt(year as i32, month, day).unwrap().and_time(time);
+    let datetime = chrono::NaiveDate::from_ymd_opt(year as i32, month, day)
+        .unwrap()
+        .and_time(time);
     doc.add_date(
         schema.get_field("date").unwrap(),
         tantivy::DateTime::from_timestamp_secs(datetime.timestamp()),
@@ -237,7 +265,8 @@ fn index_image(
 }
 
 async fn rebuild_index(index: &Index, schema: &Schema) {
-    let writer_arc: Arc<RwLock<IndexWriter>> = Arc::new(RwLock::new(index.writer(50_000_000).unwrap()));
+    let writer_arc: Arc<RwLock<IndexWriter>> =
+        Arc::new(RwLock::new(index.writer(50_000_000).unwrap()));
     let schema_arc = Arc::new(schema.clone());
     let mut handles = vec![];
     let pb = Arc::new(RwLock::new(ProgressBar::new(0)));
@@ -245,10 +274,14 @@ async fn rebuild_index(index: &Index, schema: &Schema) {
         let my_schema = Arc::clone(&schema_arc);
         let my_writer = Arc::clone(&writer_arc);
         let my_pb = Arc::clone(&pb);
-        let job = tokio::spawn( async move {
+        let job = tokio::spawn(async move {
             let entry = entry.unwrap();
             if entry.file_type().is_file() {
-                index_image(&*my_schema, my_writer.clone().read().await, entry.path().to_str().unwrap());
+                index_image(
+                    &*my_schema,
+                    my_writer.clone().read().await,
+                    entry.path().to_str().unwrap(),
+                );
             }
             my_pb.read().await.inc(1);
         });
